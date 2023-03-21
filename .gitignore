@@ -1,0 +1,11 @@
+/target
+/Cargo.lock
+
+#no exe
+*.exe
+#no lib
+*.lib
+#no dll
+*.dll
+#no so
+*.so
