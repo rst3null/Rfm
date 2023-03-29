@@ -9,7 +9,7 @@ use std::cmp;
 /// なお、この関数がサポートする数は自然数と0のみ。
 ///この計算量はO(N)である。
 ///
-pub fn decimal_add_kernel(lhs: &Vec<u64>, rhs: &Vec<u64>) -> Vec<u64> {
+pub(crate) fn decimal_add_kernel(lhs: &Vec<u64>, rhs: &Vec<u64>) -> Vec<u64> {
     let argsize = cmp::max(lhs.len(), rhs.len());
     let mut array: Vec<u64> = Vec::with_capacity(argsize + 1); //桁上がりの範囲として+1の範囲を予約
     let mut carry: u64 = 0; //桁上がり
@@ -47,7 +47,7 @@ pub fn decimal_add_kernel(lhs: &Vec<u64>, rhs: &Vec<u64>) -> Vec<u64> {
 /// 2. bool 符号(trueのとき負)
 ///
 
-pub fn decimal_sub_kernel(lhs: &Vec<u64>, rhs: &Vec<u64>) -> (Vec<u64>, bool) {
+pub(crate) fn decimal_sub_kernel(lhs: &Vec<u64>, rhs: &Vec<u64>) -> (Vec<u64>, bool) {
     let array_len: usize = cmp::max(lhs.len(), rhs.len());
     let mut array_result: Vec<u64> = Vec::with_capacity(array_len);
     let mut carry_down: u64 = 0; //桁下がり
@@ -89,7 +89,7 @@ pub fn decimal_sub_kernel(lhs: &Vec<u64>, rhs: &Vec<u64>) -> (Vec<u64>, bool) {
 
 //上位桁の余った桁を除去する。
 // cuting uppernumber zeros.
-pub fn cut_upper_zeros(mut number: Vec<u64>) -> Vec<u64> {
+pub(crate) fn cut_upper_zeros(mut number: Vec<u64>) -> Vec<u64> {
     for _i in (1..number.len()).rev() {
         if number[_i] == 0u64 {
             number.remove(_i);
@@ -104,27 +104,30 @@ pub fn cut_upper_zeros(mut number: Vec<u64>) -> Vec<u64> {
 //2^32 * 2^32 = 2^(32+32) = 2^64 
 //つまりu32::MAX同士の乗算でも64bit整数ならギリギリ表現できるのである。
 //そして、筆算をすることで計算量はO(1)である
-pub fn safe_multiply_digit_64bit(lhs:u64,rhs:u64) -> (u64,u64){
+pub(crate) fn safe_multiply_digit_64bit(lhs:u64,rhs:u64) -> (u64,u64){
     let lhs_sep:(u64,u64) = (lhs & 0xFFFFFFFFu64 , (lhs & 0xFFFFFFFF00000000u64)>>32 );
     let rhs_sep:(u64,u64) = (rhs & 0xFFFFFFFFu64 , (rhs & 0xFFFFFFFF00000000u64)>>32 );
     //2の64乗の桁と、2の32乗の桁、2の0乗の計算が必要
-    let mut res_2p64:u64 = lhs_sep.1 * rhs_sep.1;
-    let mut res_2p32:u64 = lhs_sep.0 * rhs_sep.1 + lhs_sep.1 * rhs_sep.0;
-    let mut res_2p0 :u64 = lhs_sep.0 * rhs_sep.0;
+    let res_2p64:u64 = lhs_sep.1 * rhs_sep.1;
+    let res_2p32:u64 = lhs_sep.0 * rhs_sep.1 + lhs_sep.1 * rhs_sep.0;
+    let res_2p0 :u64 = lhs_sep.0 * rhs_sep.0;
     return (res_2p0+((res_2p32 & 0xFFFFFFFFu64)<<32),res_2p64 + ((res_2p32 & 0xFFFFFFFF00000000u64)>> 32));//2桁目へのはみ出し
 }
 
 #[cfg(test)]
 mod mul_digit_test{
+    use crate::utils::safe_multiply_digit_64bit;
+
+
     #[test]
     fn test_multiply(){
-        
+        assert_eq!(safe_multiply_digit_64bit(u64::MAX,2u64),(u64::MAX-1u64,1));
     }
 }
 
 #[cfg(test)]
 mod dedimal_add_kernel_tests {
-    use crate::vul::decimal_add_kernel;
+    use crate::utils::decimal_add_kernel;
 
     #[test]
     fn test_1digit_add() {
@@ -163,7 +166,7 @@ mod dedimal_add_kernel_tests {
 
 #[cfg(test)]
 mod decimal_sub_kernel_test {
-    use crate::vul::decimal_sub_kernel;
+    use crate::utils::decimal_sub_kernel;
 
     #[test]
     fn test_normal_substitute() {
