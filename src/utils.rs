@@ -9,7 +9,7 @@ use std::cmp;
 /// なお、この関数がサポートする数は自然数と0のみ。
 ///この計算量はO(N)である。
 ///
-pub(crate) fn decimal_add_kernel(lhs: &Vec<u64>, rhs: &Vec<u64>) -> Vec<u64> {
+pub(crate) fn arbitrary_precision_add(lhs: &Vec<u64>, rhs: &Vec<u64>) -> Vec<u64> {
     let argsize = cmp::max(lhs.len(), rhs.len());
     let mut array: Vec<u64> = Vec::with_capacity(argsize + 1); //桁上がりの範囲として+1の範囲を予約
     let mut carry: u64 = 0; //桁上がり
@@ -47,7 +47,7 @@ pub(crate) fn decimal_add_kernel(lhs: &Vec<u64>, rhs: &Vec<u64>) -> Vec<u64> {
 /// 2. bool 符号(trueのとき負)
 ///
 
-pub(crate) fn decimal_sub_kernel(lhs: &Vec<u64>, rhs: &Vec<u64>) -> (Vec<u64>, bool) {
+pub(crate) fn arbitrary_precision_sub(lhs: &Vec<u64>, rhs: &Vec<u64>) -> (Vec<u64>, bool) {
     let array_len: usize = cmp::max(lhs.len(), rhs.len());
     let mut array_result: Vec<u64> = Vec::with_capacity(array_len);
     let mut carry_down: u64 = 0; //桁下がり
@@ -70,25 +70,39 @@ pub(crate) fn decimal_sub_kernel(lhs: &Vec<u64>, rhs: &Vec<u64>) -> (Vec<u64>, b
         0 => (cut_upper_zeros(array_result), false),
         1 => {//キャリーが残ってしまった場合、補数表現になっているので元に戻す
             //答えは負数()
-            let mut need_carry: bool = true;
-            for i_ in 0..array_result.len() {
-                if 0 != array_result[i_] {
-                    array_result[i_] = u64::MAX - array_result[i_]; //補数表現になってしまうので戻す
-                    if need_carry {
-                        array_result[i_] += 1;
-                        need_carry = false;
-                    }
-                }
-            }
-            return (cut_upper_zeros(array_result), true);
+            return (cut_upper_zeros(to_min_complement(array_result)), true);
         }
-        _ => panic!("It seems someting wrong in substitusion algorithm."), //余分に桁が降りてきているので計算ミス(panic)
+        _ => panic!("Something wrong in substitution algorithm. Please contact to developer.\nERROR_TYPE:Multiple carry down occured."), //余分に桁が降りてきているので計算ミス
     };
 }
 
+///最小の補数表現にする
+///また、補数から絶対値に戻すこともできる。
+pub(crate) fn to_min_complement(mut array_result: Vec<u64>) -> Vec<u64> {
+    let mut need_carry: bool = true;
+    let mut first_zeros: bool = true;
+    for i_ in 0..array_result.len() {
 
-//上位桁の余った桁を除去する。
-// cuting uppernumber zeros.
+        if first_zeros && array_result[i_] == 0 {
+            //ここでは桁上がりできないので0のまま放置
+        }
+        else {
+            first_zeros = false;
+            array_result[i_] = u64::MAX - array_result[i_]; //補数表現から戻す
+            if need_carry {
+                array_result[i_] += 1;//最初の桁だけ1加算する。
+                need_carry = false;
+            }
+        }
+    }
+    return array_result;
+}
+
+
+
+///上位桁の余った桁を除去する。
+///cuting uppernumber zeros.
+///
 pub(crate) fn cut_upper_zeros(mut number: Vec<u64>) -> Vec<u64> {
     for _i in (1..number.len()).rev() {
         if number[_i] == 0u64 {
@@ -104,14 +118,14 @@ pub(crate) fn cut_upper_zeros(mut number: Vec<u64>) -> Vec<u64> {
 //2^32 * 2^32 = 2^(32+32) = 2^64 
 //つまりu32::MAX同士の乗算でも64bit整数ならギリギリ表現できるのである。
 //そして、筆算をすることで計算量はO(1)である
-pub(crate) fn safe_multiply_digit_64bit(lhs:u64,rhs:u64) -> (u64,u64){
+pub(crate) fn safe_multiply_digit_64bit(lhs:u64,rhs:u64) -> Vec<u64>{
     let lhs_sep:(u64,u64) = (lhs & 0xFFFFFFFFu64 , (lhs & 0xFFFFFFFF00000000u64)>>32 );
     let rhs_sep:(u64,u64) = (rhs & 0xFFFFFFFFu64 , (rhs & 0xFFFFFFFF00000000u64)>>32 );
     //2の64乗の桁と、2の32乗の桁、2の0乗の計算が必要
     let res_2p64:u64 = lhs_sep.1 * rhs_sep.1;
     let res_2p32:u64 = lhs_sep.0 * rhs_sep.1 + lhs_sep.1 * rhs_sep.0;
     let res_2p0 :u64 = lhs_sep.0 * rhs_sep.0;
-    return (res_2p0+((res_2p32 & 0xFFFFFFFFu64)<<32),res_2p64 + ((res_2p32 & 0xFFFFFFFF00000000u64)>> 32));//2桁目へのはみ出し
+    return vec![res_2p0+((res_2p32 & 0xFFFFFFFFu64)<<32),res_2p64 + ((res_2p32 & 0xFFFFFFFF00000000u64)>> 32)];
 }
 
 #[cfg(test)]
@@ -121,31 +135,31 @@ mod mul_digit_test{
 
     #[test]
     fn test_multiply(){
-        assert_eq!(safe_multiply_digit_64bit(u64::MAX,2u64),(u64::MAX-1u64,1));
+        assert_eq!(safe_multiply_digit_64bit(u64::MAX,2u64),vec![u64::MAX-1u64,1]);
     }
 }
 
 #[cfg(test)]
 mod dedimal_add_kernel_tests {
-    use crate::utils::decimal_add_kernel;
+    use crate::utils::arbitrary_precision_add;
 
     #[test]
     fn test_1digit_add() {
-        assert_eq!(vec![2u64], decimal_add_kernel(&vec![1u64], &vec![1u64]));
+        assert_eq!(vec![2u64], arbitrary_precision_add(&vec![1u64], &vec![1u64]));
     }
 
     #[test]
     fn test_carry() {
         //桁上がり確認
-        assert_eq!(vec![0, 1u64], decimal_add_kernel(&vec![1], &vec![u64::MAX]));
-        assert_eq!(vec![0, 1u64], decimal_add_kernel(&vec![u64::MAX], &vec![1]));
+        assert_eq!(vec![0, 1u64], arbitrary_precision_add(&vec![1], &vec![u64::MAX]));
+        assert_eq!(vec![0, 1u64], arbitrary_precision_add(&vec![u64::MAX], &vec![1]));
     }
 
     #[test]
     fn test_carry_multiple() {
         assert_eq!(
             vec![0u64, 0u64, 0u64, 0u64, 0u64, 0u64, 0u64, 0u64, 2u64],
-            decimal_add_kernel(
+            arbitrary_precision_add(
                 &vec![
                     u64::MAX,
                     u64::MAX,
@@ -166,13 +180,13 @@ mod dedimal_add_kernel_tests {
 
 #[cfg(test)]
 mod decimal_sub_kernel_test {
-    use crate::utils::decimal_sub_kernel;
+    use crate::utils::arbitrary_precision_sub;
 
     #[test]
     fn test_normal_substitute() {
         assert_eq!(
             (vec![90u64], false),
-            decimal_sub_kernel(&vec![100u64], &vec![10u64])
+            arbitrary_precision_sub(&vec![100u64], &vec![10u64])
         );
     }
 
@@ -180,7 +194,7 @@ mod decimal_sub_kernel_test {
     fn test_carrige_down() {
         assert_eq!(
             (vec![u64::MAX], false),
-            decimal_sub_kernel(&vec![0u64, 1u64], &vec![1u64])
+            arbitrary_precision_sub(&vec![0u64, 1u64], &vec![1u64])
         );
     }
 
@@ -188,7 +202,7 @@ mod decimal_sub_kernel_test {
     fn test_result_negative() {
         assert_eq!(
             (vec![1u64], true),
-            decimal_sub_kernel(&vec![0u64], &vec![1u64])
+            arbitrary_precision_sub(&vec![0u64], &vec![1u64])
         );
     }
 
@@ -196,7 +210,7 @@ mod decimal_sub_kernel_test {
     fn test_result_negative_carrige_down() {
         assert_eq!(
             (vec![1u64], true),
-            decimal_sub_kernel(&vec![u64::MAX], &vec![0u64, 1u64])
+            arbitrary_precision_sub(&vec![u64::MAX], &vec![0u64, 1u64])
         );
     }
 
@@ -204,7 +218,7 @@ mod decimal_sub_kernel_test {
     fn test_result_negative_carrige_down_multiple() {
         assert_eq!(
             (vec![1u64], true),
-            decimal_sub_kernel(&vec![u64::MAX,u64::MAX], &vec![0u64,0u64,1u64])
+            arbitrary_precision_sub(&vec![u64::MAX,u64::MAX], &vec![0u64,0u64,1u64])
         );
     }
 }
