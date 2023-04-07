@@ -3,9 +3,11 @@ use crate::utils::*;
 ///
 /// 金融計算など、高精度な計算が必要な場面でpure rustで計算を実行します。
 use std::ops::*;
+use std::cmp::*;
 
 ///rfmライブラリにおける整数型の表現です。
 ///Integer expression in rfm library.
+#[derive(PartialEq)]
 pub struct Integer {
     ///整数の絶対値
     ///整数の絶対値を18446744073709551616進数で表記する配列
@@ -110,32 +112,19 @@ impl MulAssign for Integer {
 }
 
 impl PartialOrd for Integer {
-    fn ge(&self, other: &Self) -> bool {
-        
-    }
-    fn gt(&self, other: &Self) -> bool {
-        
-    }
-    fn le(&self, other: &Self) -> bool {
-        
-    }
-    fn lt(&self, other: &Self) -> bool {
-        
-    }
-}
-
-impl PartialEq for Integer {
-    fn eq(&self, other: &Self) -> bool {
-        if self.abs_number == other.abs_number {
-            return !(self.sign ^ other.sign) && self.abs_number== vec![0u64] 
+   
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        let result = add_router(self,&Integer { abs_number:other.abs_number.clone(), sign:!other.sign });
+        if result.abs_number == vec![0u64] {
+            return Some(Ordering::Equal);
         }
-        return false;
-    }
-
-    fn ne(&self, other: &Self) -> bool {
-        return !self.eq(&other);
+        if result.sign { //負数
+            return Some(Ordering::Less);
+        }
+        return Some(Ordering::Greater);
     }
 }
+
 
 
 impl Div for Integer {
