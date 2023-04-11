@@ -1,14 +1,7 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+//!Rust用任意精度演算ライブラリ
+//! 本ライブラリはRust向けに任意精度演算を提供するライブラリです。
+//! 
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+///値の管理用モジュール
+pub mod vul;
+mod arithmetic_util;
