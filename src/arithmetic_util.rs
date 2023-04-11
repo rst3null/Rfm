@@ -1,14 +1,18 @@
 use std::cmp;
 
-/// 巨大な整数の加算処理(筆算アルゴリズム)
-/// Internal decimal adder
-/// # Arguments
-/// * 'lhs' - 右辺値
-/// * 'rhs' - 左辺値
-/// 配列を多倍長整数と見做して加算する。
-/// なお、この関数がサポートする数は自然数と0のみ。
-///この計算量はO(N)である。
-///
+
+/**巨大な整数の加算処理(筆算アルゴリズム)
+Internal decimal adder
+# Arguments
+ * 'lhs' - 右辺値
+ * 'rhs' - 左辺値
+配列を多倍長整数と見做して加算する。
+なお、この関数がサポートする数は自然数と0のみ。
+# Returns
+計算結果を表す任意精度整数値
+# Compute cost
+この計算量はO(N)である。
+ */
 pub(crate) fn arbitrary_precision_add(lhs: &[u64], rhs: &[u64]) -> Vec<u64> {
     let argsize = cmp::max(lhs.len(), rhs.len());
     let mut array: Vec<u64> = Vec::with_capacity(argsize + 1); 
@@ -35,16 +39,16 @@ pub(crate) fn arbitrary_precision_add(lhs: &[u64], rhs: &[u64]) -> Vec<u64> {
 
 
 /**  減算計算を行う
- *  Internal substitutor imprements.
- * 
- *  # 引数 Arguments
- *  * 'lhs' - 左辺値
- *  * 'rhs' - 右辺値
- * 
- *  # 戻り値 returns
- *  戻り値は(Vec<u64>,bool)のタプルで返される
- *  1. Vec<u64> 計算後の値
- *  2. bool 符号(trueのとき負)
+ Internal substitutor imprements.
+ 
+ # 引数 Arguments
+  * 'lhs' - 左辺値
+  * 'rhs' - 右辺値
+ 
+ # 戻り値 returns
+ 戻り値は(Vec<u64>,bool)のタプルで返される
+ 1. Vec<u64> 計算後の値
+ 2. bool 符号(trueのとき負)
  */ 
 pub(crate) fn arbitrary_precision_sub(lhs: &[u64], rhs: &[u64]) -> (Vec<u64>, bool) {
     let array_len: usize = cmp::max(lhs.len(), rhs.len());
@@ -76,8 +80,9 @@ pub(crate) fn arbitrary_precision_sub(lhs: &[u64], rhs: &[u64]) -> (Vec<u64>, bo
 
 
 
-///最小の補数表現にする
-///また、補数から絶対値に戻すこともできる。
+/**最小の補数表現にする
+ * また、補数から絶対値に戻すこともできる。
+ * */
 pub(crate) fn to_min_complement(number: &[u64]) -> Vec<u64> {
     let mut array_result = number.to_vec();
     let mut need_carry: bool = true;
@@ -212,9 +217,22 @@ pub(crate) fn arbitrary_precision_mul(lhs:&[u64],rhs:&[u64]) -> Vec<u64>{
     
 }
 
+
+///逆数を求める
+///逆数は分数形式(分子、分母)で出力されるが、
+///分母は必ず2^64nの形式になる。
+///なお、逆数が存在しない場合はNoneを返す
+/*fn calculate_inverse(arg:&[u64]) -> Option<(Vec<u64>,Vec<u64>)>{
+    if arg == vec![0u64;arg.len()] {
+        return None;//解なし
+    }
+    //予測値
+    let mut predict:Rational = ;
+}*/
+
 #[cfg(test)]
 mod appdend_zeros_test{
-    use crate::utils::append_upper_zeros;
+    use crate::arithmetic_util::append_upper_zeros;
 
     #[test]
     fn test_append(){
@@ -223,7 +241,7 @@ mod appdend_zeros_test{
 }
 #[cfg(test)]
 mod mul_arbitrary_test{
-    use crate::utils::arbitrary_precision_mul;
+    use crate::arithmetic_util::arbitrary_precision_mul;
 
     #[test]
     fn test_mul_by_zero(){
@@ -252,7 +270,7 @@ mod mul_arbitrary_test{
 
 #[cfg(test)]
 mod mul_digit_test{
-    use crate::utils::safe_multiply_digit_64bit;
+    use crate::arithmetic_util::safe_multiply_digit_64bit;
 
 
     #[test]
@@ -268,7 +286,7 @@ mod mul_digit_test{
 
 #[cfg(test)]
 mod dedimal_add_kernel_tests {
-    use crate::utils::arbitrary_precision_add;
+    use crate::arithmetic_util::arbitrary_precision_add;
 
     #[test]
     fn test_1digit_add() {
@@ -307,7 +325,7 @@ mod dedimal_add_kernel_tests {
 
 #[cfg(test)]
 mod decimal_sub_kernel_test {
-    use crate::utils::arbitrary_precision_sub;
+    use crate::arithmetic_util::arbitrary_precision_sub;
 
     #[test]
     fn test_normal_substitute() {

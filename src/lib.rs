@@ -4,4 +4,4 @@
 
 ///値の管理用モジュール
 pub mod vul;
-mod utils;
+mod arithmetic_util;
