@@ -71,7 +71,7 @@ impl Div for &Sign {
     type Output = Sign;
     fn div(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
-            (_,Sign::Zero) => panic!("Div by zero"),
+            (_, Sign::Zero) => panic!("Div by zero"),
             (Sign::Positive, Sign::Positive) | (Sign::Negative, Sign::Negative) => Sign::Positive,
             (Sign::Positive, Sign::Negative) | (Sign::Negative, Sign::Positive) => Sign::Negative,
             (Sign::Zero, _) => Sign::Zero,
@@ -87,7 +87,7 @@ Integer expression in rfm library.
 pub struct Integer {
     ///整数の絶対値
     ///この配列は絶対値を保持しており、補数表現をしてはならない。
-    abs_number: Vec<Digit>,
+    number_data: Vec<Digit>,
 
     ///符号管理フラグ
     ///trueのとき、負数となる。
@@ -97,16 +97,16 @@ pub struct Integer {
 impl Integer {
     pub fn from_u128_value(value: u128) -> Integer {
         return Integer {
-            abs_number: vec![value],
+            number_data: vec![value],
             sign: match value {
-                0 =>Sign::Zero,
-                _ =>Sign::Positive,
-            }
+                0 => Sign::Zero,
+                _ => Sign::Positive,
+            },
         };
     }
     pub fn from_i128_value(value: i128) -> Integer {
         return Integer {
-            abs_number: vec![value.abs() as Digit],
+            number_data: vec![value.abs() as Digit],
             sign: match value {
                 1.. => Sign::Positive,
                 0 => Sign::Zero,
@@ -114,18 +114,22 @@ impl Integer {
             },
         };
     }
-    pub fn from_u128_slice(value: &[Digit], sign: Sign) -> Integer {
+    pub fn from_number_slice(value: &[Digit], sign: Sign) -> Integer {
         let mut result_sign = sign;
-        if value == &[0 as Digit] { //絶対値がゼロの場合
+        if value == &[0 as Digit] {
+            //絶対値がゼロの場合
             result_sign = Sign::Zero;
         } else if result_sign == Sign::Zero {
             //絶対値が0でもないのにゼロ符号を与えられた場合はpanic!とする
             panic!("non zero value, but zero sign assigned.");
         }
         return Integer {
-            abs_number: value.to_vec(),
-            sign:result_sign,
+            number_data: value.to_vec(),
+            sign: result_sign,
         };
+    }
+    pub fn abs(&self) -> Integer {
+        return Integer::from_number_slice(&self.number_data, Sign::Positive);
     }
 }
 
@@ -150,22 +154,22 @@ impl AddAssign for Integer {
 }
 
 fn add_router(lhs: &Integer, rhs: &Integer) -> Integer {
-    return match (&lhs.sign,&rhs.sign) {
+    return match (&lhs.sign, &rhs.sign) {
         //正の整数同士の加算
-        (Sign::Positive, Sign::Positive) => Integer::from_u128_slice(
-            &arbitrary_precision_add(&lhs.abs_number, &rhs.abs_number),
+        (Sign::Positive, Sign::Positive) => Integer::from_number_slice(
+            &arbitrary_precision_add(&lhs.number_data, &rhs.number_data),
             Sign::Positive,
         ),
         //負の整数同士
-        (Sign::Negative, Sign::Negative) => Integer::from_u128_slice(
-            &arbitrary_precision_add(&lhs.abs_number, &rhs.abs_number),
+        (Sign::Negative, Sign::Negative) => Integer::from_number_slice(
+            &arbitrary_precision_add(&lhs.number_data, &rhs.number_data),
             Sign::Negative,
         ),
 
         //順番を入れ替えて減算として処理
         (Sign::Negative, Sign::Positive) => {
-            let result_sub = arbitrary_precision_sub(&rhs.abs_number, &lhs.abs_number);
-            return Integer::from_u128_slice(
+            let result_sub = arbitrary_precision_sub(&rhs.number_data, &lhs.number_data);
+            return Integer::from_number_slice(
                 &result_sub.0,
                 match result_sub.1 {
                     true => Sign::Negative,
@@ -175,8 +179,8 @@ fn add_router(lhs: &Integer, rhs: &Integer) -> Integer {
         }
         //相手がマイナスなので引き算と等価
         (Sign::Positive, Sign::Negative) => {
-            let result_sub = arbitrary_precision_sub(&lhs.abs_number, &rhs.abs_number);
-            return Integer::from_u128_slice(
+            let result_sub = arbitrary_precision_sub(&lhs.number_data, &rhs.number_data);
+            return Integer::from_number_slice(
                 &result_sub.0,
                 match result_sub.1 {
                     true => Sign::Negative,
@@ -192,7 +196,7 @@ fn add_router(lhs: &Integer, rhs: &Integer) -> Integer {
 impl Neg for &Integer {
     type Output = Integer;
     fn neg(self) -> Self::Output {
-        return Integer::from_u128_slice(&self.abs_number, -&self.sign);
+        return Integer::from_number_slice(&self.number_data, -&self.sign);
     }
 }
 
@@ -200,7 +204,7 @@ impl Neg for Integer {
     type Output = Integer;
 
     fn neg(self) -> Self::Output {
-        return Integer::from_u128_slice(&self.abs_number, -self.sign);
+        return Integer::from_number_slice(&self.number_data, -self.sign);
     }
 }
 
@@ -227,18 +231,21 @@ impl SubAssign for Integer {
 impl Mul for &Integer {
     type Output = Integer;
     fn mul(self, rhs: Self) -> Self::Output {
-        return match (&self.sign,&rhs.sign) {
-            (Sign::Zero,_) | (_,Sign::Zero) =>  Integer::from_u128_value(0),
-            (Sign::Positive,Sign::Positive) | (Sign::Negative,Sign::Negative) => Integer::from_u128_slice(
-                &arbitrary_precision_mul(&self.abs_number, &rhs.abs_number),
-                Sign::Positive
-            ),
-            (Sign::Positive,Sign::Negative) | (Sign::Negative,Sign::Positive) => 
-                Integer::from_u128_slice(
-                    &arbitrary_precision_mul(&self.abs_number, &rhs.abs_number),
-                Sign::Negative
-            ),
-        }
+        return match (&self.sign, &rhs.sign) {
+            (Sign::Zero, _) | (_, Sign::Zero) => Integer::from_u128_value(0),
+            (Sign::Positive, Sign::Positive) | (Sign::Negative, Sign::Negative) => {
+                Integer::from_number_slice(
+                    &arbitrary_precision_mul(&self.number_data, &rhs.number_data),
+                    Sign::Positive,
+                )
+            }
+            (Sign::Positive, Sign::Negative) | (Sign::Negative, Sign::Positive) => {
+                Integer::from_number_slice(
+                    &arbitrary_precision_mul(&self.number_data, &rhs.number_data),
+                    Sign::Negative,
+                )
+            }
+        };
     }
 }
 
@@ -252,7 +259,7 @@ impl Mul for Integer {
 impl MulAssign for Integer {
     fn mul_assign(&mut self, rhs: Self) {
         self.sign = &self.sign * &rhs.sign;
-        self.abs_number = arbitrary_precision_mul(&self.abs_number, &rhs.abs_number);
+        self.number_data = arbitrary_precision_mul(&self.number_data, &rhs.number_data);
     }
 }
 
@@ -265,16 +272,78 @@ impl Ord for Integer {
             Sign::Negative => Ordering::Less,
         }
     }
+    
 }
 
 impl Div for &Integer {
     type Output = Integer;
     fn div(self, rhs: Self) -> Self::Output {
-        if *rhs == Integer::from_u128_value(0) {
-            panic!("Div by zero");
+        let sign: Sign = &self.sign / &rhs.sign;
+        let (inverse_num, inverse_exp) = calculate_inverse(rhs);
+        
+        
+
+
+        let mut self_shift = vec![0 as Digit; rhs.number_data.len()];
+        self_shift.extend(self.number_data.clone());
+        let self_shift = Integer::from_number_slice(&self_shift, sign);
+        let result_value = self_shift
+            * Integer::from_number_slice(&predict.0.number_data[0..calc_number], Sign::Positive); //切り捨て
+        if (&(&result_value + &Integer::from_u128_value(1u128)) * &rhs) <= *self {
+            return result_value + Integer::from_u128_value(1u128);
+        } else {
+            return result_value;
         }
-        //let valid_number:usize = ;
-        todo!("imprement required");
+    }
+}
+
+fn calculate_inverse(rhs: &Integer) -> (Integer, i128) {
+    let calc_number = rhs.number_data.len()+1;
+    //有効数字を1多くして処理、収束したら最下桁を消す。
+    let src = rhs.abs();
+    let mut predict = (
+        Integer::from_u128_value(1 as Digit),
+        -&(calc_number as i128) + 1,
+    );
+    loop {
+        let mul_predict_src = (&predict.0 * &src, predict.1);
+        //2を求める
+        let mut two_vec = vec![0 as Digit; (0 - mul_predict_src.1) as usize];
+        two_vec.push(2);
+        let predict_step2 = (
+            Integer::from_number_slice(&two_vec, Sign::Positive) - mul_predict_src.0,
+            mul_predict_src.1,
+        );
+        let mut next_predict = (&predict_step2.0 * &predict.0, &predict_step2.1 + &predict.1);
+        let next_predict_len = next_predict.0.number_data.len();
+
+        if next_predict_len > calc_number {
+            let diff: usize = next_predict_len - calc_number;
+            next_predict.0.number_data.drain(0..diff);
+            next_predict.1 += diff as i128;//drainしたので差分調整
+        }
+
+        if next_predict.0 == predict.0 {//桁を落としているため、最終的に収束することによって等価演算子による演算は問題ない。
+            break;
+        }
+    
+        predict = next_predict;
+
+    }
+    //四捨五入相当の操作を実行(乗算して試すより安定チェックで1桁多く取っているので乗算する必要なし)
+    if predict.0.number_data[0] >= (1 << (Digit::BITS/2)) {
+        predict.0.number_data[1] += 1;
+
+    }
+    predict.0.number_data.remove(0);
+    predict.1 += 1;//差分調整
+    predict
+}
+
+impl Div for Integer {
+    type Output = Integer;
+    fn div(self, rhs: Self) -> Self::Output {
+        return &self / &rhs;
     }
 }
 
@@ -440,6 +509,30 @@ impl Ord for Rational {
             Sign::Positive => Ordering::Greater,
             Sign::Negative => Ordering::Less,
             Sign::Zero => Ordering::Equal,
-        }
+        };
+    }
+}
+
+#[cfg(test)]
+mod integer_test {
+    use super::{Digit, Integer, Sign};
+
+    #[test]
+    fn div_test() {
+        assert_eq!(
+            Integer::from_u128_value(1024),
+            Integer::from_u128_value(2048) / Integer::from_u128_value(2)
+        );
+    }
+
+    #[test]
+    fn mul_test() {
+        let a = Integer::from_number_slice(
+            &vec![0 as Digit, 340282366920938463463374607431768211454 as Digit],
+            Sign::Positive,
+        );
+        let b = Integer::from_u128_value(1 as Digit);
+        assert_eq!(&a * &b, a);
+        assert_eq!(&b * &a, a);
     }
 }
