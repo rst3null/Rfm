@@ -5,6 +5,7 @@
 use crate::arithmetic_util::*;
 use std::cmp::*;
 use std::ops::*;
+use crate::num_traits;
 
 /**
 本ライブラリにおける1桁の型
@@ -16,7 +17,7 @@ pub type Digit = u128;
  * 符号型として新しく定義する。
  * これによって「負の0」問題を回避する
  */
-#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[derive(NumOps,Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
 pub enum Sign {
     Negative,
     Zero,

@@ -1,6 +1,6 @@
 use std::cmp;
 
-use crate::vul::{Digit, Integer, Rational};
+use crate::num::{Digit, Integer, Rational};
 
 
 
@@ -224,7 +224,7 @@ fn arbitrary_precision_int_to_string(value:&[Digit])->String{
 
 #[cfg(test)]
 mod appdend_zeros_test {
-    use crate::{arithmetic_util::append_upper_zeros, vul::Digit};
+    use crate::{arithmetic_util::append_upper_zeros, num::Digit};
 
     #[test]
     fn test_append() {
@@ -236,7 +236,7 @@ mod appdend_zeros_test {
 }
 #[cfg(test)]
 mod mul_arbitrary_test {
-    use crate::{arithmetic_util::arbitrary_precision_mul, vul::Digit};
+    use crate::{arithmetic_util::arbitrary_precision_mul, num::Digit};
 
     #[test]
     fn test_mul_by_zero() {
@@ -279,7 +279,7 @@ mod mul_arbitrary_test {
 
 #[cfg(test)]
 mod mul_digit_test {
-    use crate::{arithmetic_util::safe_multiply_digit, vul::Digit};
+    use crate::{arithmetic_util::safe_multiply_digit, num::Digit};
 
     #[test]
     fn test_multiply() {
@@ -306,7 +306,7 @@ mod mul_digit_test {
 
 #[cfg(test)]
 mod dedimal_add_kernel_tests {
-    use crate::{arithmetic_util::arbitrary_precision_add, vul::Digit};
+    use crate::{arithmetic_util::arbitrary_precision_add, num::Digit};
 
     #[test]
     fn test_1digit_add() {
@@ -356,7 +356,7 @@ mod dedimal_add_kernel_tests {
 
 #[cfg(test)]
 mod decimal_sub_kernel_test {
-    use crate::{arithmetic_util::arbitrary_precision_sub, vul::Digit};
+    use crate::{arithmetic_util::arbitrary_precision_sub, num::Digit};
 
     #[test]
     fn test_normal_substitute() {

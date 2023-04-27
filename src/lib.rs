@@ -3,5 +3,6 @@
 //! 
 
 ///値の管理用モジュール
-pub mod vul;
+pub mod num;
+pub mod num_traits;
 mod arithmetic_util;
