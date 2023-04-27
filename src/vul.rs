@@ -280,20 +280,10 @@ impl Div for &Integer {
     fn div(self, rhs: Self) -> Self::Output {
         let sign: Sign = &self.sign / &rhs.sign;
         let (inverse_num, inverse_exp) = calculate_inverse(rhs);
-        
-        
-
-
-        let mut self_shift = vec![0 as Digit; rhs.number_data.len()];
-        self_shift.extend(self.number_data.clone());
-        let self_shift = Integer::from_number_slice(&self_shift, sign);
-        let result_value = self_shift
-            * Integer::from_number_slice(&predict.0.number_data[0..calc_number], Sign::Positive); //切り捨て
-        if (&(&result_value + &Integer::from_u128_value(1u128)) * &rhs) <= *self {
-            return result_value + Integer::from_u128_value(1u128);
-        } else {
-            return result_value;
-        }
+        let mut result_value = self * &inverse_num;
+        result_value.number_data.drain(0..inverse_exp.abs() as usize);//桁繰り下げ
+        result_value.sign=sign;
+        return result_value;
     }
 }
 
@@ -337,6 +327,7 @@ fn calculate_inverse(rhs: &Integer) -> (Integer, i128) {
     }
     predict.0.number_data.remove(0);
     predict.1 += 1;//差分調整
+    debug_assert!(predict.1 <= 0);
     predict
 }
 
@@ -350,7 +341,14 @@ impl Div for Integer {
 impl Rem for &Integer {
     type Output = Integer;
     fn rem(self, rhs: Self) -> Self::Output {
-        todo!("imprement this");
+        return self - &(&( self / &rhs ) * &rhs);
+    }
+}
+
+impl Rem for Integer{
+    type Output = Self;
+    fn rem(self, rhs: Self) -> Self::Output {
+        return &self % &rhs;
     }
 }
 
@@ -523,6 +521,21 @@ mod integer_test {
             Integer::from_u128_value(1024),
             Integer::from_u128_value(2048) / Integer::from_u128_value(2)
         );
+    }
+    #[test]
+    fn div_remained_test(){
+        assert_eq!(
+            Integer::from_u128_value(2),
+            Integer::from_u128_value(20) / Integer::from_u128_value(7)
+        )
+    }
+
+    #[test]
+    fn remain_test(){
+        assert_eq!(
+            Integer::from_u128_value(6),
+            Integer::from_u128_value(20) % Integer::from_u128_value(7)
+        )
     }
 
     #[test]
