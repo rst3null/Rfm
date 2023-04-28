@@ -3,9 +3,10 @@
 現時点で整数と有理数のみに対応しています。
 */
 use crate::arithmetic_util::*;
+use crate::math_traits::FromPrimitiveNumber;
 use std::cmp::*;
 use std::ops::*;
-use crate::num_traits;
+use crate::math_traits;
 
 /**
 本ライブラリにおける1桁の型
@@ -17,7 +18,7 @@ pub type Digit = u128;
  * 符号型として新しく定義する。
  * これによって「負の0」問題を回避する
  */
-#[derive(NumOps,Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
 pub enum Sign {
     Negative,
     Zero,
@@ -80,10 +81,9 @@ impl Div for &Sign {
     }
 }
 
-/**
-rfmライブラリにおける整数型の表現です。
-Integer expression in rfm library.
-*/
+
+/// rfmライブラリにおける整数型の表現です。
+/// Integer expression in rfm library.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Clone)]
 pub struct Integer {
     ///整数の絶対値
@@ -96,27 +96,13 @@ pub struct Integer {
 }
 
 impl Integer {
-    pub fn from_u128_value(value: u128) -> Integer {
-        return Integer {
-            number_data: vec![value],
-            sign: match value {
-                0 => Sign::Zero,
-                _ => Sign::Positive,
-            },
-        };
-    }
-    pub fn from_i128_value(value: i128) -> Integer {
-        return Integer {
-            number_data: vec![value.abs() as Digit],
-            sign: match value {
-                1.. => Sign::Positive,
-                0 => Sign::Zero,
-                _ => Sign::Negative,
-            },
-        };
-    }
+
+
     pub fn from_number_slice(value: &[Digit], sign: Sign) -> Integer {
         let mut result_sign = sign;
+        if value.len() == 0{
+            panic!("empty is not allowed.");
+        }
         if value == &[0 as Digit] {
             //絶対値がゼロの場合
             result_sign = Sign::Zero;
@@ -129,8 +115,32 @@ impl Integer {
             sign: result_sign,
         };
     }
+    
     pub fn abs(&self) -> Integer {
         return Integer::from_number_slice(&self.number_data, Sign::Positive);
+    }
+}
+
+impl FromPrimitiveNumber for Integer{
+    fn from_i128(val:i128) -> Self {
+        return Integer {
+            number_data: vec![val.abs() as Digit],
+            sign: match val {
+                1.. => Sign::Positive,
+                0 => Sign::Zero,
+                _ => Sign::Negative,
+            },
+        };
+    }
+
+    fn from_u128(val:u128) -> Self {
+        return Integer {
+            number_data: vec![val],
+            sign: match val {
+                0 => Sign::Zero,
+                _ => Sign::Positive,
+            },
+        };
     }
 }
 
@@ -233,7 +243,7 @@ impl Mul for &Integer {
     type Output = Integer;
     fn mul(self, rhs: Self) -> Self::Output {
         return match (&self.sign, &rhs.sign) {
-            (Sign::Zero, _) | (_, Sign::Zero) => Integer::from_u128_value(0),
+            (Sign::Zero, _) | (_, Sign::Zero) => Integer::from_u128(0),
             (Sign::Positive, Sign::Positive) | (Sign::Negative, Sign::Negative) => {
                 Integer::from_number_slice(
                     &arbitrary_precision_mul(&self.number_data, &rhs.number_data),
@@ -293,7 +303,7 @@ fn calculate_inverse(rhs: &Integer) -> (Integer, i128) {
     //有効数字を1多くして処理、収束したら最下桁を消す。
     let src = rhs.abs();
     let mut predict = (
-        Integer::from_u128_value(1 as Digit),
+        Integer::from_u128(1 as Digit),
         -&(calc_number as i128) + 1,
     );
     loop {
@@ -353,6 +363,20 @@ impl Rem for Integer{
     }
 }
 
+/// Integer型の単位元0を定義する
+impl math_traits::Zero for Integer{
+    fn zero()->Integer {
+        return Integer::from_u128(0);
+    }
+}
+
+/// Integer型の単位元1を定義する
+impl math_traits::One for Integer{
+    fn one()->Integer {
+        return Integer::from_u128(1);
+    }
+}
+
 /*
 impl std::fmt::Display for &Integer{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -385,7 +409,7 @@ impl Rational {
     dividerに0を指定した場合、ゼロ除算の扱いとなり、処理を中止します。
      */
     pub fn new(positive: &Integer, divider: &Integer) -> Rational {
-        if divider == &Integer::from_u128_value(0) {
+        if divider == &Integer::from_u128(0) {
             panic!("Divide by zero"); //ゼロ除算防止
         }
         return Rational {
@@ -397,7 +421,7 @@ impl Rational {
     pub fn from_intager(val: &Integer) -> Rational {
         return Rational {
             positive: val.clone(),
-            divider: Integer::from_u128_value(1),
+            divider: Integer::from_u128(1),
         };
     }
 }
@@ -493,7 +517,7 @@ impl Div for Rational {
 
 impl DivAssign for Rational {
     fn div_assign(&mut self, rhs: Self) {
-        if rhs.positive == Integer::from_u128_value(0) {
+        if rhs.positive == Integer::from_u128(0) {
             panic!("Divide by zero")
         }
         self.positive = &self.positive * &rhs.divider;
@@ -519,23 +543,23 @@ mod integer_test {
     #[test]
     fn div_test() {
         assert_eq!(
-            Integer::from_u128_value(1024),
-            Integer::from_u128_value(2048) / Integer::from_u128_value(2)
+            Integer::from_u128(1024),
+            Integer::from_u128(2048) / Integer::from_u128(2)
         );
     }
     #[test]
     fn div_remained_test(){
         assert_eq!(
-            Integer::from_u128_value(2),
-            Integer::from_u128_value(20) / Integer::from_u128_value(7)
+            Integer::from_u128(2),
+            Integer::from_u128(20) / Integer::from_u128(7)
         )
     }
 
     #[test]
     fn remain_test(){
         assert_eq!(
-            Integer::from_u128_value(6),
-            Integer::from_u128_value(20) % Integer::from_u128_value(7)
+            Integer::from_u128(6),
+            Integer::from_u128(20) % Integer::from_u128(7)
         )
     }
 
@@ -545,7 +569,7 @@ mod integer_test {
             &vec![0 as Digit, 340282366920938463463374607431768211454 as Digit],
             Sign::Positive,
         );
-        let b = Integer::from_u128_value(1 as Digit);
+        let b = Integer::from_u128(1 as Digit);
         assert_eq!(&a * &b, a);
         assert_eq!(&b * &a, a);
     }
