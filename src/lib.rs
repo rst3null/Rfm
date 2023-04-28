@@ -4,5 +4,5 @@
 
 ///値の管理用モジュール
 pub mod num;
-pub mod num_traits;
+pub mod math_traits;
 mod arithmetic_util;
