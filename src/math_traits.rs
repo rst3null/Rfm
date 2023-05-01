@@ -46,17 +46,21 @@ pub trait One:Add + Sub + Mul + Div + Rem + Sized{
 
 ///偶奇判定
 pub trait EvenOdd:Add + Sub + Mul + Div + Rem + Sized{
-    fn is_even(self)-> bool;
-    fn is_odd(self)-> bool;
+    fn is_even(&self)-> bool;
+    fn is_odd(&self)-> bool;
 }
 
 ///累乗計算
 pub trait Pow:EvenOdd + FromPrimitiveNumber + Div + Sized{
-    fn pow(self,exp:Self) -> Self;
+    fn pow(&self,exp:Self) -> Self;
 }
 
-
-
+///平方根計算
 pub trait Sqrt:Mul + Sized{
     
+}
+
+///割り算と同時に余りを求める効率化
+pub trait DivRem:Div + Rem + Sized{
+    fn div_rem(&self,rhs:&Self) -> (Self,Self);
 }

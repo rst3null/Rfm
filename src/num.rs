@@ -3,7 +3,7 @@
 現時点で整数と有理数のみに対応しています。
 */
 use crate::arithmetic_util::*;
-use crate::math_traits::FromPrimitiveNumber;
+use crate::math_traits::*;
 use std::cmp::*;
 use std::ops::*;
 use crate::math_traits;
@@ -100,10 +100,11 @@ impl Integer {
 
     pub fn from_number_slice(value: &[Digit], sign: Sign) -> Integer {
         let mut result_sign = sign;
-        if value.len() == 0{
+        let val_cutupzero = cut_upper_zeros(value);
+        if val_cutupzero.len() == 0{
             panic!("empty is not allowed.");
         }
-        if value == &[0 as Digit] {
+        if val_cutupzero == &[0 as Digit] {
             //絶対値がゼロの場合
             result_sign = Sign::Zero;
         } else if result_sign == Sign::Zero {
@@ -111,7 +112,7 @@ impl Integer {
             panic!("non zero value, but zero sign assigned.");
         }
         return Integer {
-            number_data: value.to_vec(),
+            number_data: val_cutupzero.to_vec(),
             sign: result_sign,
         };
     }
@@ -363,6 +364,14 @@ impl Rem for Integer{
     }
 }
 
+impl DivRem for Integer{
+    fn div_rem(&self,rhs:&Self) -> (Self,Self) {
+        let div = self / rhs;
+        let rem = self - &(&div * &rhs);
+        return (div,rem);
+    }
+}
+
 /// Integer型の単位元0を定義する
 impl math_traits::Zero for Integer{
     fn zero()->Integer {
@@ -376,6 +385,37 @@ impl math_traits::One for Integer{
         return Integer::from_u128(1);
     }
 }
+
+impl math_traits::EvenOdd for Integer{
+    fn is_even(&self)-> bool {
+        return 0 == self.number_data[0] % 2;
+    }
+
+    fn is_odd(&self) -> bool {
+        return 0 != self.number_data[0] % 2;
+    }
+}
+
+impl math_traits::Pow for Integer {
+    fn pow(&self,exp:Self) -> Self {
+        let two = Integer::from_i128(2);
+        let one = Integer::one();
+        if exp == one{
+            return self.clone();
+        }
+        let powered =  self.pow(&exp / &two);//指数exp以下で一番近い偶数での計算結果を得る
+        if exp.is_even() {
+            
+            return &powered * &powered;
+        }
+        else{
+            return &(&powered * &powered) * &self;//奇数の場合は1個下の偶数に+1(指数法則)
+        }
+    }
+}
+
+
+
 
 /*
 impl std::fmt::Display for &Integer{
@@ -538,6 +578,7 @@ impl Ord for Rational {
 
 #[cfg(test)]
 mod integer_test {
+    use crate::math_traits::FromPrimitiveNumber;
     use super::{Digit, Integer, Sign};
 
     #[test]
