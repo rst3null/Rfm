@@ -55,10 +55,6 @@ pub trait Pow:EvenOdd + FromPrimitiveNumber + Div + Sized{
     fn pow(&self,exp:Self) -> Self;
 }
 
-///平方根計算
-pub trait Sqrt:Mul + Sized{
-    
-}
 
 ///割り算と同時に余りを求める効率化
 pub trait DivRem:Div + Rem + Sized{

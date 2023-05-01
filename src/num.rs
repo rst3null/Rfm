@@ -3,10 +3,10 @@
 現時点で整数と有理数のみに対応しています。
 */
 use crate::arithmetic_util::*;
+use crate::math_traits;
 use crate::math_traits::*;
 use std::cmp::*;
 use std::ops::*;
-use crate::math_traits;
 
 /**
 本ライブラリにおける1桁の型
@@ -81,7 +81,6 @@ impl Div for &Sign {
     }
 }
 
-
 /// rfmライブラリにおける整数型の表現です。
 /// Integer expression in rfm library.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Clone)]
@@ -96,12 +95,10 @@ pub struct Integer {
 }
 
 impl Integer {
-
-
     pub fn from_number_slice(value: &[Digit], sign: Sign) -> Integer {
         let mut result_sign = sign;
         let val_cutupzero = cut_upper_zeros(value);
-        if val_cutupzero.len() == 0{
+        if val_cutupzero.len() == 0 {
             panic!("empty is not allowed.");
         }
         if val_cutupzero == &[0 as Digit] {
@@ -116,14 +113,14 @@ impl Integer {
             sign: result_sign,
         };
     }
-    
+
     pub fn abs(&self) -> Integer {
         return Integer::from_number_slice(&self.number_data, Sign::Positive);
     }
 }
 
-impl FromPrimitiveNumber for Integer{
-    fn from_i128(val:i128) -> Self {
+impl FromPrimitiveNumber for Integer {
+    fn from_i128(val: i128) -> Self {
         return Integer {
             number_data: vec![val.abs() as Digit],
             sign: match val {
@@ -134,7 +131,7 @@ impl FromPrimitiveNumber for Integer{
         };
     }
 
-    fn from_u128(val:u128) -> Self {
+    fn from_u128(val: u128) -> Self {
         return Integer {
             number_data: vec![val],
             sign: match val {
@@ -243,21 +240,21 @@ impl SubAssign for Integer {
 impl Mul for &Integer {
     type Output = Integer;
     fn mul(self, rhs: Self) -> Self::Output {
-        return match (&self.sign, &rhs.sign) {
-            (Sign::Zero, _) | (_, Sign::Zero) => Integer::from_u128(0),
-            (Sign::Positive, Sign::Positive) | (Sign::Negative, Sign::Negative) => {
-                Integer::from_number_slice(
-                    &arbitrary_precision_mul(&self.number_data, &rhs.number_data),
-                    Sign::Positive,
-                )
-            }
-            (Sign::Positive, Sign::Negative) | (Sign::Negative, Sign::Positive) => {
-                Integer::from_number_slice(
-                    &arbitrary_precision_mul(&self.number_data, &rhs.number_data),
-                    Sign::Negative,
-                )
-            }
-        };
+        let sign = &self.sign * &rhs.sign;
+        if sign == Sign::Zero {
+            return Integer::zero();
+        }
+        let one = Integer::one();
+
+        if rhs.abs() == one {
+            return Integer::from_number_slice(&self.number_data, sign);
+        } else if self.abs() == one {
+            return Integer::from_number_slice(&rhs.number_data, sign);
+        }
+        return Integer::from_number_slice(
+            &arbitrary_precision_mul(&self.number_data, &rhs.number_data),
+            sign,
+        );
     }
 }
 
@@ -284,29 +281,35 @@ impl Ord for Integer {
             Sign::Negative => Ordering::Less,
         }
     }
-    
 }
 
 impl Div for &Integer {
     type Output = Integer;
     fn div(self, rhs: Self) -> Self::Output {
+
         let sign: Sign = &self.sign / &rhs.sign;
+        if sign == Sign::Zero{
+            return Integer::zero();
+        }else if rhs.abs() == Integer::one() {
+            return Integer::from_number_slice(&self.number_data, sign);
+        }else if self.abs() == Integer::one() {
+            return Integer::from_number_slice(&rhs.number_data,sign);
+        }
         let (inverse_num, inverse_exp) = calculate_inverse(rhs);
         let mut result_value = self * &inverse_num;
-        result_value.number_data.drain(0..inverse_exp.abs() as usize);//桁繰り下げ
-        result_value.sign=sign;
+        result_value
+            .number_data
+            .drain(0..inverse_exp.abs() as usize); //桁繰り下げ
+        result_value.sign = sign;
         return result_value;
     }
 }
 
 fn calculate_inverse(rhs: &Integer) -> (Integer, i128) {
-    let calc_number = rhs.number_data.len()+1;
+    let calc_number = rhs.number_data.len() + 1;
     //有効数字を1多くして処理、収束したら最下桁を消す。
     let src = rhs.abs();
-    let mut predict = (
-        Integer::from_u128(1 as Digit),
-        -&(calc_number as i128) + 1,
-    );
+    let mut predict = (Integer::from_u128(1 as Digit), -&(calc_number as i128) + 1);
     loop {
         let mul_predict_src = (&predict.0 * &src, predict.1);
         //2を求める
@@ -322,23 +325,22 @@ fn calculate_inverse(rhs: &Integer) -> (Integer, i128) {
         if next_predict_len > calc_number {
             let diff: usize = next_predict_len - calc_number;
             next_predict.0.number_data.drain(0..diff);
-            next_predict.1 += diff as i128;//drainしたので差分調整
+            next_predict.1 += diff as i128; //drainしたので差分調整
         }
 
-        if next_predict.0 == predict.0 {//桁を落としているため、最終的に収束することによって等価演算子による演算は問題ない。
+        if next_predict.0 == predict.0 {
+            //桁を落としているため、最終的に収束することによって等価演算子による演算は問題ない。
             break;
         }
-    
-        predict = next_predict;
 
+        predict = next_predict;
     }
     //四捨五入相当の操作を実行(乗算して試すより安定チェックで1桁多く取っているので乗算する必要なし)
-    if predict.0.number_data[0] >= (1 << (Digit::BITS/2)) {
+    if predict.0.number_data[0] >= (1 << (Digit::BITS / 2)) {
         predict.0.number_data[1] += 1;
-
     }
     predict.0.number_data.remove(0);
-    predict.1 += 1;//差分調整
+    predict.1 += 1; //差分調整
     debug_assert!(predict.1 <= 0);
     predict
 }
@@ -353,41 +355,41 @@ impl Div for Integer {
 impl Rem for &Integer {
     type Output = Integer;
     fn rem(self, rhs: Self) -> Self::Output {
-        return self - &(&( self / &rhs ) * &rhs);
+        return self - &(&(self / &rhs) * &rhs);
     }
 }
 
-impl Rem for Integer{
+impl Rem for Integer {
     type Output = Self;
     fn rem(self, rhs: Self) -> Self::Output {
         return &self % &rhs;
     }
 }
 
-impl DivRem for Integer{
-    fn div_rem(&self,rhs:&Self) -> (Self,Self) {
+impl DivRem for Integer {
+    fn div_rem(&self, rhs: &Self) -> (Self, Self) {
         let div = self / rhs;
         let rem = self - &(&div * &rhs);
-        return (div,rem);
+        return (div, rem);
     }
 }
 
 /// Integer型の単位元0を定義する
-impl math_traits::Zero for Integer{
-    fn zero()->Integer {
+impl math_traits::Zero for Integer {
+    fn zero() -> Integer {
         return Integer::from_u128(0);
     }
 }
 
 /// Integer型の単位元1を定義する
-impl math_traits::One for Integer{
-    fn one()->Integer {
+impl math_traits::One for Integer {
+    fn one() -> Integer {
         return Integer::from_u128(1);
     }
 }
 
-impl math_traits::EvenOdd for Integer{
-    fn is_even(&self)-> bool {
+impl math_traits::EvenOdd for Integer {
+    fn is_even(&self) -> bool {
         return 0 == self.number_data[0] % 2;
     }
 
@@ -397,25 +399,20 @@ impl math_traits::EvenOdd for Integer{
 }
 
 impl math_traits::Pow for Integer {
-    fn pow(&self,exp:Self) -> Self {
+    fn pow(&self, exp: Self) -> Self {
         let two = Integer::from_i128(2);
         let one = Integer::one();
-        if exp == one{
+        if exp == one {
             return self.clone();
         }
-        let powered =  self.pow(&exp / &two);//指数exp以下で一番近い偶数での計算結果を得る
+        let powered = self.pow(&exp / &two); //指数exp以下で一番近い偶数での計算結果を得る
         if exp.is_even() {
-            
             return &powered * &powered;
-        }
-        else{
-            return &(&powered * &powered) * &self;//奇数の場合は1個下の偶数に+1(指数法則)
+        } else {
+            return &(&powered * &powered) * &self; //奇数の場合は1個下の偶数に+1(指数法則)
         }
     }
 }
-
-
-
 
 /*
 impl std::fmt::Display for &Integer{
@@ -461,7 +458,7 @@ impl Rational {
     pub fn from_intager(val: &Integer) -> Rational {
         return Rational {
             positive: val.clone(),
-            divider: Integer::from_u128(1),
+            divider: Integer::one(),
         };
     }
 }
@@ -578,8 +575,8 @@ impl Ord for Rational {
 
 #[cfg(test)]
 mod integer_test {
-    use crate::math_traits::FromPrimitiveNumber;
     use super::{Digit, Integer, Sign};
+    use crate::math_traits::{FromPrimitiveNumber, Pow};
 
     #[test]
     fn div_test() {
@@ -589,7 +586,7 @@ mod integer_test {
         );
     }
     #[test]
-    fn div_remained_test(){
+    fn div_remained_test() {
         assert_eq!(
             Integer::from_u128(2),
             Integer::from_u128(20) / Integer::from_u128(7)
@@ -597,11 +594,27 @@ mod integer_test {
     }
 
     #[test]
-    fn remain_test(){
+    fn remain_test() {
         assert_eq!(
             Integer::from_u128(6),
             Integer::from_u128(20) % Integer::from_u128(7)
         )
+    }
+
+    #[test]
+    fn pow_test() {
+        assert_eq!(
+            Integer::from_u128(1024),
+            Integer::from_u128(2).pow(Integer::from_u128(10))
+        );
+    }
+
+    #[test]
+    fn pow_odd_test() {
+        assert_eq!(
+            Integer::from_u128(512),
+            Integer::from_u128(2).pow(Integer::from_u128(9))
+        );
     }
 
     #[test]
