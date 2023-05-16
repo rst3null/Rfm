@@ -5,6 +5,7 @@
 use crate::arithmetic_util::*;
 use crate::math_traits;
 use crate::math_traits::*;
+use crate::algorithm::*;
 use std::cmp::*;
 use std::ops::*;
 
@@ -455,11 +456,21 @@ impl Rational {
         };
     }
 
+    /// 整数を実数型に変換する
+    /// # Arguments
+    /// * val - 整数
+    /// このメソッドは引数に指定された整数と等価な実数値を返します。
     pub fn from_intager(val: &Integer) -> Rational {
         return Rational {
             positive: val.clone(),
             divider: Integer::one(),
         };
+    }
+
+    pub fn reduction(&mut self){
+        let divider = gcd(&self.positive,&self.divider);
+        self.positive = &self.positive/&divider;
+        self.divider = &self.divider/&divider;
     }
 }
 
