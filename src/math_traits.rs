@@ -56,7 +56,7 @@ pub trait Pow:EvenOdd + FromPrimitiveNumber + Div + Sized{
 }
 
 
-///割り算と同時に余りを求める効率化
+///商と余りを同時に求める
 pub trait DivRem:Div + Rem + Sized{
     fn div_rem(&self,rhs:&Self) -> (Self,Self);
 }
